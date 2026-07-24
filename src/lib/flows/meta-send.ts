@@ -1,12 +1,11 @@
 import {
   sendInteractiveButtons,
   sendInteractiveList,
-  sendMediaMessage,
-  sendTextMessage,
   type InteractiveButton,
   type InteractiveListSection,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
+import { resolveProvider } from '@/lib/whatsapp/providers'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   sanitizePhoneForMeta,
@@ -86,12 +85,10 @@ export async function engineSendText(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  const provider = resolveProvider(config)
 
   const attempt = async (phone: string): Promise<string> => {
-    const r = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendText({
       to: phone,
       text: args.text,
     })
@@ -195,12 +192,10 @@ export async function engineSendMedia(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  const provider = resolveProvider(config)
 
   const attempt = async (phone: string): Promise<string> => {
-    const r = await sendMediaMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendMedia({
       to: phone,
       kind: args.kind,
       link: args.link,
@@ -347,6 +342,18 @@ async function sendInteractiveViaMeta(
     throw new Error('WhatsApp not configured for this account')
   }
 
+  // Botões e listas são recursos da API oficial. Numa conta Uazapi o nó
+  // interativo não tem equivalente — falha cedo, com mensagem que o log
+  // do fluxo mostra ao usuário, em vez de montar um payload que o
+  // provedor rejeitaria.
+  const provider = resolveProvider(config)
+  if (provider.kind !== 'meta') {
+    throw new Error(
+      'Nós de botão e lista estão disponíveis apenas na API oficial da Meta.',
+    )
+  }
+
+  // Só alcançável com provider.kind === 'meta' (guarda acima).
   const accessToken = decrypt(config.access_token)
 
   const attempt = async (phone: string): Promise<string> => {

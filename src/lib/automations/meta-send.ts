@@ -1,4 +1,5 @@
-import { sendTextMessage, sendTemplateMessage } from '@/lib/whatsapp/meta-api'
+import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
+import { resolveProvider } from '@/lib/whatsapp/providers'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   sanitizePhoneForMeta,
@@ -92,7 +93,19 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  // Contas Uazapi não têm access_token; só o ramo de template o usa.
+  const accessToken = config.access_token ? decrypt(config.access_token) : ''
+
+  const provider = resolveProvider(config)
+
+  // Passo de template é Meta-only — a Uazapi não tem esse conceito.
+  // Falha antes de qualquer chamada de rede, com mensagem que o log da
+  // automação mostra ao usuário.
+  if (input.kind === 'template' && provider.kind !== 'meta') {
+    throw new Error(
+      'Modelos de mensagem estão disponíveis apenas na API oficial da Meta.',
+    )
+  }
 
   const attempt = async (phone: string): Promise<string> => {
     if (input.kind === 'template') {
@@ -106,9 +119,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
       })
       return r.messageId
     }
-    const r = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendText({
       to: phone,
       text: input.text,
     })
