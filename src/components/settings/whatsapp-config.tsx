@@ -28,7 +28,20 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion';
-import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ProviderSelector } from './provider-selector';
+import { UazapiConfig } from './uazapi-config';
+import type {
+  WhatsAppConfig as WhatsAppConfigType,
+  WhatsAppProviderKind,
+} from '@/types';
 
 const MASKED_TOKEN = '••••••••••••••••';
 
@@ -53,6 +66,14 @@ export function WhatsAppConfig() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unknown');
   const [resetReason, setResetReason] = useState<ResetReason>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  // Provedor exibido na tela. Inicia em 'meta' porque é o default do
+  // banco (migração 031) e o comportamento histórico de toda conta.
+  const [provider, setProvider] = useState<WhatsAppProviderKind>('meta');
+  // Provedor aguardando confirmação: trocar com uma conexão ativa
+  // derruba a atual, então pedimos confirmação explícita antes.
+  const [pendingProvider, setPendingProvider] =
+    useState<WhatsAppProviderKind | null>(null);
+  const [uazapiAvailable, setUazapiAvailable] = useState(false);
   // Guards against re-hydrating the form when the load effect below
   // re-runs for reasons unrelated to actually switching accounts —
   // e.g. Supabase's onAuthStateChange fires a token refresh (new
@@ -113,6 +134,9 @@ export function WhatsAppConfig() {
 
       if (data) {
         setConfig(data);
+        // Linhas anteriores à migração 031 não têm a coluna; o default do
+        // banco é 'meta' e o comportamento histórico também.
+        setProvider((data.provider as WhatsAppProviderKind) || 'meta');
         setPhoneNumberId(data.phone_number_id || '');
         setWabaId(data.waba_id || '');
         setAccessToken(MASKED_TOKEN);
@@ -162,6 +186,24 @@ export function WhatsAppConfig() {
       setLoading(false);
     }
   }, [supabase]);
+
+  // A disponibilidade da Uazapi depende de variáveis de ambiente do
+  // servidor, que este componente cliente não enxerga. O endpoint
+  // devolve só um booleano — a URL e o admintoken nunca saem do backend.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/whatsapp/uazapi/availability')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setUazapiAvailable(Boolean(data.available));
+      })
+      .catch(() => {
+        // Falha aqui só mantém a opção desabilitada — o padrão seguro.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     // Need both the auth session (`!authLoading`) AND the profile
@@ -389,8 +431,61 @@ export function WhatsAppConfig() {
     <section className="animate-in fade-in-50 duration-200">
       <SettingsPanelHead
         title="Conexão com o WhatsApp"
-        description="Conecte sua API do WhatsApp Business da Meta. Credenciais, webhook e etapas de configuração ficam todos aqui."
+        description="Escolha como conectar seu WhatsApp: pela API oficial da Meta ou escaneando um QR code."
       />
+
+      <div className="mb-6">
+        <ProviderSelector
+          value={provider}
+          uazapiAvailable={uazapiAvailable}
+          disabled={saving || testing || resetting}
+          onChange={(next) => {
+            if (next === provider) return;
+            // Trocar de provedor com uma conexão ativa derruba a atual —
+            // pedimos confirmação em vez de fazer isso silenciosamente.
+            if (config && connectionStatus === 'connected') {
+              setPendingProvider(next);
+              return;
+            }
+            setProvider(next);
+          }}
+        />
+      </div>
+
+      <Dialog
+        open={pendingProvider !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingProvider(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Trocar de provedor?</DialogTitle>
+            <DialogDescription>
+              A conexão atual do WhatsApp será encerrada. Seus contatos,
+              conversas e mensagens são preservados — apenas o canal de
+              envio muda.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingProvider(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingProvider) setProvider(pendingProvider);
+                setPendingProvider(null);
+              }}
+            >
+              Trocar provedor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {provider === 'uazapi' ? (
+        <UazapiConfig />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       {/* Main config form */}
       <div className="space-y-6">
@@ -854,6 +949,7 @@ export function WhatsAppConfig() {
         </Card>
       </div>
     </div>
+      )}
     </section>
   );
 }
