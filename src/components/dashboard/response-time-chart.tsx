@@ -48,29 +48,29 @@ export function ResponseTimeChart({
       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            Average First Response Time
+            Tempo médio de primeira resposta
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Minutes to reply to a customer&apos;s first unreplied message, by
-            weekday
+            Minutos até responder à primeira mensagem não respondida do
+            cliente, por dia da semana
           </p>
         </div>
         <div className="flex items-center gap-3 text-right text-xs">
           {thresholdMinutes > 0 && (
             <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 font-medium text-rose-300 tabular-nums">
-              target {thresholdMinutes}m
+              meta de {thresholdMinutes}min
             </span>
           )}
           {data && (data.thisWeekAvg != null || data.lastWeekAvg != null) && (
             <div>
               <div className="text-muted-foreground">
-                This week:{' '}
+                Esta semana:{' '}
                 <span className="font-medium text-foreground tabular-nums">
                   {fmt(data.thisWeekAvg)}
                 </span>
               </div>
               <div className="text-muted-foreground">
-                Last week:{' '}
+                Semana passada:{' '}
                 <span className="tabular-nums">{fmt(data.lastWeekAvg)}</span>
               </div>
             </div>
@@ -84,8 +84,8 @@ export function ResponseTimeChart({
         ) : !hasData ? (
           <EmptyState
             icon={Clock}
-            title="No replies recorded yet"
-            hint="This chart fills in as you reply to customer messages."
+            title="Nenhuma resposta registrada ainda"
+            hint="Este gráfico será preenchido conforme você responder mensagens de clientes."
           />
         ) : (
           <BarChart

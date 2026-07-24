@@ -110,13 +110,13 @@ export function FlowEditorShell({ initialFlow, initialNodes }: Props) {
                 active={effectiveView === "canvas"}
                 onClick={() => choose("canvas")}
                 icon={<GitFork className="h-3.5 w-3.5" />}
-                label="Canvas"
+                label="Diagrama"
               />
               <SegButton
                 active={effectiveView === "list"}
                 onClick={() => choose("list")}
                 icon={<List className="h-3.5 w-3.5" />}
-                label="List"
+                label="Lista"
               />
             </div>
             <div className="ml-auto hidden flex-wrap items-center gap-x-3.5 gap-y-1.5 lg:flex">
