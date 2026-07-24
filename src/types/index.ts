@@ -230,13 +230,41 @@ export interface MessageReaction {
   created_at: string;
 }
 
+/**
+ * Provedor de WhatsApp da conta (migração 031).
+ *
+ * 'meta'   — Meta Cloud API: conta business aprovada, templates,
+ *            transmissões e mensagens interativas.
+ * 'uazapi' — conexão por QR Code: sem aprovação, mas sem templates,
+ *            transmissões nem botões/listas.
+ *
+ * 'meta' é o default no banco, então toda linha anterior à 031 é meta.
+ */
+export type WhatsAppProviderKind = 'meta' | 'uazapi';
+
 export interface WhatsAppConfig {
   id: string;
   user_id: string;
-  phone_number_id: string;
+  provider: WhatsAppProviderKind;
+  /** Meta apenas. Ausente quando provider = 'uazapi'. */
+  phone_number_id?: string;
   waba_id?: string;
-  access_token: string;
+  /** Meta apenas (criptografado). Ausente quando provider = 'uazapi'. */
+  access_token?: string;
   verify_token?: string;
+  /** Uazapi apenas: id da instância no servidor Uazapi. */
+  uazapi_instance_id?: string;
+  /** Uazapi apenas: token da instância (criptografado em repouso). */
+  uazapi_instance_token?: string;
+  /**
+   * Uazapi apenas: segredo que compõe a URL de callback. A Uazapi não
+   * assina o payload como a Meta faz, então este segredo É a
+   * autenticação do webhook — nunca expor ao cliente.
+   */
+  uazapi_webhook_secret?: string;
+  uazapi_instance_name?: string;
+  uazapi_profile_name?: string;
+  uazapi_profile_pic_url?: string;
   status: 'connected' | 'disconnected';
   connected_at?: string;
   /**
