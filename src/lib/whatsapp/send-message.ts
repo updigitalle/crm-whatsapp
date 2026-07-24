@@ -22,11 +22,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  sendTextMessage,
   sendTemplateMessage,
-  sendMediaMessage,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
+import { resolveProvider } from '@/lib/whatsapp/providers';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 import {
@@ -60,6 +59,13 @@ export class SendMessageError extends Error {
     this.status = status;
   }
 }
+
+/**
+ * Código devolvido quando a conta pede um template mas o provedor
+ * configurado não tem esse conceito (Uazapi). Exportado para a UI poder
+ * reconhecer o caso sem comparar strings soltas.
+ */
+export const TEMPLATE_UNSUPPORTED_CODE = 'template_not_supported_by_provider';
 
 export interface SendMessageParams {
   conversationId: string;
@@ -234,10 +240,13 @@ export async function sendMessageToConversation(
     );
   }
 
-  const accessToken = decrypt(config.access_token);
+  // Só o caminho de template usa o token diretamente; texto e mídia
+  // passam pelo provider, que já embute a credencial certa. Contas
+  // Uazapi não têm access_token — daí a leitura condicional.
+  const accessToken = config.access_token ? decrypt(config.access_token) : '';
 
   // Self-heal legacy CBC ciphertexts. Fire-and-forget; idempotent.
-  if (isLegacyFormat(config.access_token)) {
+  if (config.access_token && isLegacyFormat(config.access_token)) {
     void db
       .from('whatsapp_config')
       .update({ access_token: encrypt(accessToken) })
@@ -301,8 +310,26 @@ export async function sendMessageToConversation(
     templateRow = data ?? null;
   }
 
+  // Resolve o provedor a partir da config já carregada. Para contas Meta
+  // isso devolve exatamente o mesmo caminho de antes — o adapter é uma
+  // casca fina sobre meta-api.ts.
+  const provider = resolveProvider(config);
+
+  // Template é exclusivo da Meta: a Uazapi não tem esse conceito.
+  // Falhamos aqui, antes de qualquer chamada de rede, com um código que
+  // a UI reconhece.
+  if (messageType === 'template' && provider.kind !== 'meta') {
+    throw new SendMessageError(
+      TEMPLATE_UNSUPPORTED_CODE,
+      'Modelos de mensagem estão disponíveis apenas na API oficial da Meta.',
+      400
+    );
+  }
+
   const attempt = async (phone: string): Promise<string> => {
     if (messageType === 'template') {
+      // Só alcançável com provider.kind === 'meta' (guarda acima), então
+      // phone_number_id e accessToken estão necessariamente preenchidos.
       const result = await sendTemplateMessage({
         phoneNumberId: config.phone_number_id,
         accessToken,
@@ -317,9 +344,7 @@ export async function sendMessageToConversation(
       return result.messageId;
     }
     if (isMediaKind) {
-      const result = await sendMediaMessage({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
+      const result = await provider.sendMedia({
         to: phone,
         kind: messageType as MediaKind,
         link: mediaUrl!,
@@ -329,9 +354,7 @@ export async function sendMessageToConversation(
       });
       return result.messageId;
     }
-    const result = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const result = await provider.sendText({
       to: phone,
       text: contentText!,
       contextMessageId,

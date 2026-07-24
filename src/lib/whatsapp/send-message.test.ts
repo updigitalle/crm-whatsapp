@@ -4,8 +4,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   sendMessageToConversation,
   SendMessageError,
+  TEMPLATE_UNSUPPORTED_CODE,
   type SendMessageParams,
 } from './send-message';
+import { encrypt } from './encryption';
 
 // A db that explodes if touched — these tests cover the param
 // validation that MUST short-circuit before any query runs.
@@ -113,5 +115,102 @@ describe('SendMessageError', () => {
     expect(e.code).toBe('meta_error');
     expect(e.status).toBe(502);
     expect(e).toBeInstanceOf(Error);
+  });
+});
+
+/**
+ * Guarda de provedor: a Uazapi não tem o conceito de template aprovado,
+ * então um envio de template numa conta Uazapi tem de falhar ANTES de
+ * qualquer chamada de rede — e não estourar em algum ponto arbitrário
+ * do adapter.
+ */
+describe('send-message — guarda de provedor', () => {
+  /**
+   * Stub do Supabase que devolve conversa, contato e config conforme a
+   * tabela pedida, reproduzindo a cadeia de chamadas que o núcleo usa.
+   */
+  function dbWithConfig(config: Record<string, unknown>): SupabaseClient {
+    const conversation = {
+      id: 'conv-1',
+      account_id: 'acct-1',
+      contact: { id: 'contact-1', phone: '+5511999999999' },
+    };
+    return {
+      from(table: string) {
+        const chain: Record<string, unknown> = {
+          select: () => chain,
+          eq: () => chain,
+          maybeSingle: async () => ({ data: null, error: null }),
+          single: async () => {
+            if (table === 'conversations') {
+              return { data: conversation, error: null };
+            }
+            if (table === 'whatsapp_config') {
+              return { data: config, error: null };
+            }
+            return { data: null, error: { message: 'unexpected table' } };
+          },
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+  }
+
+  const uazapiConfig = {
+    id: 'cfg-1',
+    provider: 'uazapi',
+    uazapi_instance_id: 'inst-1',
+    uazapi_instance_token: encrypt('token-uazapi'),
+  };
+
+  it('recusa template numa conta Uazapi, sem tocar na rede', async () => {
+    const fetchSpy = vi.fn(() => {
+      throw new Error('nenhuma chamada de rede deveria acontecer');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    process.env.UAZAPI_SERVER_URL = 'https://teste.uazapi.com';
+
+    try {
+      await expect(
+        sendMessageToConversation(dbWithConfig(uazapiConfig), 'acct-1', {
+          conversationId: 'conv-1',
+          messageType: 'template',
+          templateName: 'boas_vindas',
+        })
+      ).rejects.toMatchObject({
+        code: TEMPLATE_UNSUPPORTED_CODE,
+        status: 400,
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.UAZAPI_SERVER_URL;
+    }
+  });
+
+  it('deixa o template seguir numa conta Meta', async () => {
+    const metaConfig = {
+      id: 'cfg-2',
+      provider: 'meta',
+      phone_number_id: 'phone-1',
+      access_token: encrypt('token-meta'),
+    };
+    // A guarda não dispara; o fluxo avança até a chamada de rede, que o
+    // stub interrompe — prova de que o template não foi bloqueado.
+    vi.stubGlobal('fetch', vi.fn(() => {
+      throw new Error('chegou na rede');
+    }));
+
+    try {
+      await expect(
+        sendMessageToConversation(dbWithConfig(metaConfig), 'acct-1', {
+          conversationId: 'conv-1',
+          messageType: 'template',
+          templateName: 'boas_vindas',
+        })
+      ).rejects.not.toMatchObject({ code: TEMPLATE_UNSUPPORTED_CODE });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
