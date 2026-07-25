@@ -94,6 +94,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useFlowEditor } from './flow-editor-state';
 import { NodeConfigForm } from './forms/node-config-form';
+import { useWhatsAppProvider } from '@/hooks/use-whatsapp-provider';
 
 // React-Flow node `data` payload — the bits our custom renderer needs.
 interface NodeData extends Record<string, unknown> {
@@ -682,22 +683,24 @@ function NodeEditSheet({
 // center of the visible viewport rather than appending to a list.
 // ============================================================
 
-const ADD_NODE_TYPES: NodeType[] = [
-  'start',
-  'send_buttons',
-  'send_list',
-  'send_message',
-  'send_media',
-  'collect_input',
-  'condition',
-  'set_tag',
-  'handoff',
-  'end',
-];
-
 function CanvasAddNodeButton() {
   const reactFlow = useReactFlow();
   const { addNode, updateNodePosition } = useFlowEditor();
+  // Botões e listas são mensagens interativas da API oficial da Meta.
+  // Numa conta Uazapi o motor recusa esses nós — não os oferecemos aqui,
+  // espelhando a mesma guarda do AddNodeButton da visão em lista.
+  const { isUazapi } = useWhatsAppProvider();
+  const ADD_NODE_TYPES: NodeType[] = [
+    'start',
+    ...((isUazapi ? [] : ['send_buttons', 'send_list']) as NodeType[]),
+    'send_message',
+    'send_media',
+    'collect_input',
+    'condition',
+    'set_tag',
+    'handoff',
+    'end',
+  ];
 
   const handleAdd = (type: NodeType) => {
     const key = addNode(type);

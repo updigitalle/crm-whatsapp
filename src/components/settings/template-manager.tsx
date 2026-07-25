@@ -26,6 +26,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SettingsPanelHead } from './settings-panel-head';
+import { ProviderUnsupportedNotice } from './provider-unsupported-notice';
+import { useWhatsAppProvider } from '@/hooks/use-whatsapp-provider';
 import {
   Dialog,
   DialogContent,
@@ -140,6 +142,8 @@ function emptyButton(type: TemplateButton['type']): TemplateButton {
 export function TemplateManager() {
   const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
+  // Modelos são aprovados pela Meta e só existem na API oficial.
+  const { isUazapi, loading: providerLoading } = useWhatsAppProvider();
 
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -491,6 +495,23 @@ export function TemplateManager() {
     } finally {
       setUploadingHeader(false);
     }
+  }
+
+  // Guarda de provedor: criar um modelo numa conta Uazapi produziria uma
+  // linha que nunca poderia ser enviada. O backend também recusa.
+  if (!providerLoading && isUazapi) {
+    return (
+      <section className="animate-in fade-in-50 space-y-4 duration-200">
+        <SettingsPanelHead
+          title="Modelos de mensagem"
+          description="Modelos são aprovados pela Meta e usados em transmissões e automações."
+        />
+        <ProviderUnsupportedNotice
+          feature="Modelos de mensagem"
+          reason="Eles passam por aprovação da Meta e funcionam apenas na API oficial."
+        />
+      </section>
+    );
   }
 
   return (

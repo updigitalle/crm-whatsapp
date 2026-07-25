@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useWhatsAppProvider } from '@/hooks/use-whatsapp-provider';
 import {
   CircleAlert,
   Plus,
@@ -566,10 +567,14 @@ function NodeConfigWithAdvanced({
 // ============================================================
 
 function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
+  // Botões e listas são mensagens interativas da API oficial da Meta.
+  // Numa conta Uazapi o motor recusa esses nós, então não os oferecemos
+  // — melhor não poder criar do que criar e falhar em produção.
+  const { isUazapi } = useWhatsAppProvider();
+
   const types: NodeType[] = [
     'start',
-    'send_buttons',
-    'send_list',
+    ...((isUazapi ? [] : ['send_buttons', 'send_list']) as NodeType[]),
     'send_message',
     'send_media',
     'collect_input',

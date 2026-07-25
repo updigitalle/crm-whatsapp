@@ -17,6 +17,8 @@ import { Radio, Plus, Loader2 } from 'lucide-react';
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { getBroadcastStatus } from '@/lib/broadcast-status';
+import { useWhatsAppProvider } from '@/hooks/use-whatsapp-provider';
+import { ProviderUnsupportedNotice } from '@/components/settings/provider-unsupported-notice';
 
 /**
  * Poll cadence while any broadcast is sending. Kept modest so we don't
@@ -59,6 +61,9 @@ function RateCell({
 export default function BroadcastsPage() {
   const router = useRouter();
   const canCreate = useCan('send-messages');
+  // Transmissões dependem de modelo aprovado pela Meta — não é uma
+  // chamada diferente, é o modelo de dados da funcionalidade.
+  const { isUazapi, loading: providerLoading } = useWhatsAppProvider();
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +148,25 @@ export default function BroadcastsPage() {
         <Button variant="outline" onClick={() => window.location.reload()}>
           Tentar novamente
         </Button>
+      </div>
+    );
+  }
+
+  // O backend também recusa (broadcast-core exige template aprovado);
+  // esta guarda evita o usuário montar uma transmissão que nunca sairia.
+  if (!providerLoading && isUazapi) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Transmissões</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Envie um modelo de mensagem para muitos contatos de uma vez.
+          </p>
+        </div>
+        <ProviderUnsupportedNotice
+          feature="Transmissões"
+          reason="Elas usam modelos de mensagem aprovados, um recurso exclusivo da API oficial da Meta."
+        />
       </div>
     );
   }
