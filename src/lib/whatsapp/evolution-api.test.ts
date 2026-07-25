@@ -3,6 +3,7 @@ import {
   EvolutionError,
   connectInstance,
   createInstance,
+  findInstanceByName,
   getConnectionState,
   sendMedia,
   sendText,
@@ -96,6 +97,48 @@ describe("createInstance", () => {
     await expect(
       createInstance({ serverUrl: SERVER, adminApikey: "ruim", instanceName: "x" }),
     ).rejects.toMatchObject({ code: "unauthorized", status: 401 });
+  });
+
+  it("recusa nome já em uso com 403, código 'unauthorized'", async () => {
+    // Reproduz o caso real: a Evolution API devolve 403 tanto para
+    // apikey inválido quanto para "nome já em uso" — é por isso que
+    // ensureEvolutionInstance trata esse erro tentando adotar a
+    // instância existente em vez de confiar cegamente no código.
+    fetchMock.current.mockResolvedValue(
+      jsonErr(403, { message: ['This name "conta-abc" is already in use.'] }),
+    );
+    await expect(
+      createInstance({ serverUrl: SERVER, adminApikey: "a", instanceName: "conta-abc" }),
+    ).rejects.toMatchObject({ code: "unauthorized", status: 403 });
+  });
+});
+
+describe("findInstanceByName", () => {
+  const fetchMock = useFetchMock();
+
+  it("devolve nome e apikey quando a instância existe", async () => {
+    fetchMock.current.mockResolvedValue(
+      jsonOk([{ name: "conta-abc", token: "tok-existente" }]),
+    );
+    const result = await findInstanceByName({
+      serverUrl: SERVER,
+      adminApikey: "admin",
+      instanceName: "conta-abc",
+    });
+    expect(result).toEqual({ instanceName: "conta-abc", apikey: "tok-existente" });
+    expect(lastCall(fetchMock.current).url).toBe(
+      `${SERVER}/instance/fetchInstances?instanceName=conta-abc`,
+    );
+  });
+
+  it("devolve null quando o servidor não devolve nenhuma instância", async () => {
+    fetchMock.current.mockResolvedValue(jsonOk([]));
+    const result = await findInstanceByName({
+      serverUrl: SERVER,
+      adminApikey: "admin",
+      instanceName: "inexistente",
+    });
+    expect(result).toBeNull();
   });
 });
 

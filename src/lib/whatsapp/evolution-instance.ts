@@ -13,6 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   connectInstance,
   createInstance,
+  findInstanceByName,
   getConnectionState,
   setWebhook,
   EvolutionError,
@@ -91,7 +92,25 @@ export async function ensureEvolutionInstance(
   const instanceName = `${args.accountName}-${accountId.slice(0, 8)}`
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, '-')
-  const created = await createInstance({ serverUrl, adminApikey, instanceName })
+
+  // A instância pode já existir no servidor mesmo sem linha em
+  // whatsapp_config — por exemplo, se o banco foi restaurado/limpo
+  // manualmente depois de uma conexão real. Nesse caso a Evolution API
+  // recusa a criação ("nome já em uso") e, em vez de propagar isso como
+  // falha, adotamos a instância existente (e a sessão de WhatsApp que
+  // ela já tiver) em vez de tentar recriar algo que já está lá.
+  let created: { instanceName: string; apikey: string }
+  try {
+    created = await createInstance({ serverUrl, adminApikey, instanceName })
+  } catch (err) {
+    const existingInstance = await findInstanceByName({
+      serverUrl,
+      adminApikey,
+      instanceName,
+    })
+    if (!existingInstance) throw err
+    created = existingInstance
+  }
   const webhookSecret = newWebhookSecret()
 
   // upsert por account_id: trocar de Meta para Evolution ATUALIZA a

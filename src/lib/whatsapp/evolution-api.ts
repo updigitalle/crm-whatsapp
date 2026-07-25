@@ -132,6 +132,36 @@ export interface InstanceApikeyArgs {
   instanceName: string
 }
 
+export interface FindInstanceArgs {
+  serverUrl: string
+  adminApikey: string
+  instanceName: string
+}
+
+/**
+ * Busca uma instância existente pelo nome.
+ *
+ * Usado quando `createInstance` falha por "nome já em uso" — sinal de
+ * que a linha em `whatsapp_config` foi perdida (ex.: reset manual do
+ * banco) mas a instância, e a sessão do WhatsApp nela, continuam vivas
+ * no servidor. Devolve null quando não encontra, para o chamador decidir
+ * o que fazer.
+ */
+export async function findInstanceByName(
+  args: FindInstanceArgs,
+): Promise<{ instanceName: string; apikey: string } | null> {
+  const payload = (await request(
+    args.serverUrl,
+    `/instance/fetchInstances?instanceName=${encodeURIComponent(args.instanceName)}`,
+    args.adminApikey,
+    { method: 'GET' },
+  )) as Array<{ name?: string; token?: string }>
+
+  const found = Array.isArray(payload) ? payload[0] : undefined
+  if (!found?.name || !found.token) return null
+  return { instanceName: found.name, apikey: found.token }
+}
+
 /** Inicia/renova a conexão e devolve o QR code atual. */
 export async function connectInstance(
   args: InstanceApikeyArgs,
