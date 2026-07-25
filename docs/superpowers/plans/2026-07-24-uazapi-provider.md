@@ -2997,3 +2997,57 @@ Estas exigem `UAZAPI_SERVER_URL` e `UAZAPI_ADMIN_TOKEN` de um servidor Uazapi co
 - [ ] Automação com passo de texto disparando por mensagem recebida
 - [ ] Fluxo com nós de texto e mídia executando ponta a ponta
 - [ ] Reconexão após desconectar o aparelho pelo celular
+
+---
+
+## Resultado da execução (2026-07-25)
+
+As 11 tarefas foram implementadas e commitadas no branch `feat/uazapi-provider`.
+
+**Verificação automatizada:**
+- `npm test`: 650 testes, 645 passando. As 5 falhas são pré-existentes e
+  de ambiente (fuso horário e locale da máquina de desenvolvimento —
+  `currency.test.ts` e `date-utils.test.ts`), confirmadas idênticas
+  antes de qualquer mudança desta implementação (`git stash` + rerun).
+- `npx vitest run src/lib/whatsapp/ src/app/api/whatsapp/`: **252/252
+  passando** — nenhuma regressão na Meta.
+- `npx tsc --noEmit`: sem erros.
+- `npm run lint`: 0 erros, 19 warnings, todos pré-existentes (nenhum nos
+  arquivos desta implementação).
+- `npm run build`: build de produção completo, as 5 rotas novas
+  (`connect`, `status`, `disconnect`, `availability`, `webhook/[secret]`)
+  aparecem no manifesto.
+
+**Verificação manual no navegador (conta com `provider = 'meta'`,
+sem `whatsapp_config`):**
+- `/settings` → aba WhatsApp: os dois cards aparecem; sem as variáveis
+  de ambiente, o card Uazapi mostra "Provedor não configurado pelo
+  administrador" e fica fora da navegação por teclado
+  (`aria-disabled`, `tabIndex=-1`); o formulário da Meta permanece
+  íntegro.
+- Com `UAZAPI_SERVER_URL`/`UAZAPI_ADMIN_TOKEN` de teste (servidor real,
+  admintoken inválido de propósito): o card habilitou, a troca de
+  provedor funcionou, e `POST /connect` chegou de fato ao servidor
+  Uazapi e voltou 401, traduzido para "Credenciais da Uazapi
+  inválidas. Contate o administrador." — prova de ponta a ponta do
+  cliente HTTP, do mapeamento de erros e da rota.
+- `/broadcasts` e Configurações → Modelos: renderizam normalmente (sem
+  aviso de indisponibilidade) para a conta em `meta`.
+
+**Duas descobertas durante a execução, fora do escopo original:**
+1. O núcleo de envio (`send-message.ts`) não era o único ponto de
+   despacho para a Meta — havia quatro (ver a correção registrada no
+   documento de design). O plano já foi escrito considerando isso; a
+   Task 5 cobre os três que aceitam adapter.
+2. O menu "Adicionar nó" do editor de Fluxos existe em **dois** lugares
+   independentes (`flow-builder.tsx` e `flow-canvas.tsx`), cada um com
+   sua própria lista de tipos de nó. A Task 10 originalmente só cobria
+   o primeiro; a lacuna no segundo foi encontrada e corrigida durante a
+   verificação no navegador, na mesma tarefa.
+
+**Bug pré-existente encontrado, não corrigido aqui:** ao testar o botão
+"Adicionar nó" dentro do canvas do editor de Fluxos, a página quebra com
+`Uncaught Error: Base UI: MenuGroupContext is missing`. Confirmado via
+`git diff main` que o arquivo não tinha nenhuma mudança de lógica antes
+desta sessão — não é causado pela integração Uazapi. Registrado como
+tarefa separada (spawn_task) para correção independente.
