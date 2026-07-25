@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useWhatsAppProvider } from "@/hooks/use-whatsapp-provider";
 import { usePresence } from "@/hooks/use-presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
@@ -166,6 +167,9 @@ export function MessageThread({
   onToggleContactPanel,
 }: MessageThreadProps) {
   const { user } = useAuth();
+  // A janela de 24h para responder sem modelo é uma regra da API oficial
+  // da Meta — não existe na Evolution API (conexão por QR, sem modelo).
+  const { isEvolution } = useWhatsAppProvider();
   const { getPresence, getRow, now } = usePresence();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -219,8 +223,11 @@ export function MessageThread({
     };
   }, []);
 
-  // 24-hour session timer
+  // 24-hour session timer — regra exclusiva da API oficial da Meta.
+  // Contas conectadas via Evolution API (QR Code) enviam texto livre a
+  // qualquer momento, como no WhatsApp Web, sem essa janela nem modelo.
   const sessionInfo = useMemo(() => {
+    if (isEvolution) return { expired: false, remaining: "" };
     if (!messages.length) return { expired: false, remaining: "" };
 
     // Find last customer message
@@ -244,7 +251,7 @@ export function MessageThread({
         : `${Math.floor(hoursLeft * 60)}min restantes`;
 
     return { expired, remaining };
-  }, [messages]);
+  }, [messages, isEvolution]);
 
   // Store latest callback in a ref so fetchMessages doesn't need to
   // depend on `onMessagesLoaded` — otherwise parent re-renders cause
@@ -841,18 +848,21 @@ export function MessageThread({
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
             <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
           </div>
-          {/* Session timer badge — hidden on the narrowest phones so
-              the name + back arrow keep their room. */}
-          <Badge
-            variant="outline"
-            className={cn(
-              "ml-1 hidden gap-1 border-border text-[10px] sm:inline-flex sm:ml-2",
-              sessionInfo.expired ? "text-red-400" : "text-primary"
-            )}
-          >
-            <Clock className="h-3 w-3" />
-            {sessionInfo.remaining}
-          </Badge>
+          {/* Session timer badge — regra da Meta, sem sentido na
+              Evolution API. Hidden on the narrowest phones so the name
+              + back arrow keep their room. */}
+          {!isEvolution && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "ml-1 hidden gap-1 border-border text-[10px] sm:inline-flex sm:ml-2",
+                sessionInfo.expired ? "text-red-400" : "text-primary"
+              )}
+            >
+              <Clock className="h-3 w-3" />
+              {sessionInfo.remaining}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1077,6 +1087,7 @@ export function MessageThread({
         onSend={handleSend}
         onSendMedia={handleSendMedia}
         onOpenTemplates={handleOpenTemplates}
+        templatesAvailable={!isEvolution}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
       />
