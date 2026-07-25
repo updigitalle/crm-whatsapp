@@ -119,10 +119,10 @@ describe('SendMessageError', () => {
 });
 
 /**
- * Guarda de provedor: a Uazapi não tem o conceito de template aprovado,
- * então um envio de template numa conta Uazapi tem de falhar ANTES de
- * qualquer chamada de rede — e não estourar em algum ponto arbitrário
- * do adapter.
+ * Guarda de provedor: a Evolution API não tem o conceito de template
+ * aprovado, então um envio de template numa conta Evolution tem de
+ * falhar ANTES de qualquer chamada de rede — e não estourar em algum
+ * ponto arbitrário do adapter.
  */
 describe('send-message — guarda de provedor', () => {
   /**
@@ -156,23 +156,23 @@ describe('send-message — guarda de provedor', () => {
     } as unknown as SupabaseClient;
   }
 
-  const uazapiConfig = {
+  const evolutionConfig = {
     id: 'cfg-1',
-    provider: 'uazapi',
-    uazapi_instance_id: 'inst-1',
-    uazapi_instance_token: encrypt('token-uazapi'),
+    provider: 'evolution',
+    evolution_instance_name: 'conta-abc',
+    evolution_instance_apikey: encrypt('apikey-evolution'),
   };
 
-  it('recusa template numa conta Uazapi, sem tocar na rede', async () => {
+  it('recusa template numa conta Evolution, sem tocar na rede', async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error('nenhuma chamada de rede deveria acontecer');
     });
     vi.stubGlobal('fetch', fetchSpy);
-    process.env.UAZAPI_SERVER_URL = 'https://teste.uazapi.com';
+    process.env.EVOLUTION_SERVER_URL = 'https://teste.local:8080';
 
     try {
       await expect(
-        sendMessageToConversation(dbWithConfig(uazapiConfig), 'acct-1', {
+        sendMessageToConversation(dbWithConfig(evolutionConfig), 'acct-1', {
           conversationId: 'conv-1',
           messageType: 'template',
           templateName: 'boas_vindas',
@@ -184,7 +184,7 @@ describe('send-message — guarda de provedor', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
-      delete process.env.UAZAPI_SERVER_URL;
+      delete process.env.EVOLUTION_SERVER_URL;
     }
   });
 

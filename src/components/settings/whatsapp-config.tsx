@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ProviderSelector } from './provider-selector';
-import { UazapiConfig } from './uazapi-config';
+import { EvolutionConfig } from './evolution-config';
 import type {
   WhatsAppConfig as WhatsAppConfigType,
   WhatsAppProviderKind,
@@ -73,7 +73,7 @@ export function WhatsAppConfig() {
   // derruba a atual, então pedimos confirmação explícita antes.
   const [pendingProvider, setPendingProvider] =
     useState<WhatsAppProviderKind | null>(null);
-  const [uazapiAvailable, setUazapiAvailable] = useState(false);
+  const [evolutionAvailable, setEvolutionAvailable] = useState(false);
   // Guards against re-hydrating the form when the load effect below
   // re-runs for reasons unrelated to actually switching accounts —
   // e.g. Supabase's onAuthStateChange fires a token refresh (new
@@ -187,15 +187,15 @@ export function WhatsAppConfig() {
     }
   }, [supabase]);
 
-  // A disponibilidade da Uazapi depende de variáveis de ambiente do
+  // A disponibilidade da Evolution API depende de variáveis de ambiente do
   // servidor, que este componente cliente não enxerga. O endpoint
   // devolve só um booleano — a URL e o admintoken nunca saem do backend.
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/whatsapp/uazapi/availability')
+    fetch('/api/whatsapp/evolution/availability')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!cancelled && data) setUazapiAvailable(Boolean(data.available));
+        if (!cancelled && data) setEvolutionAvailable(Boolean(data.available));
       })
       .catch(() => {
         // Falha aqui só mantém a opção desabilitada — o padrão seguro.
@@ -437,7 +437,7 @@ export function WhatsAppConfig() {
       <div className="mb-6">
         <ProviderSelector
           value={provider}
-          uazapiAvailable={uazapiAvailable}
+          evolutionAvailable={evolutionAvailable}
           disabled={saving || testing || resetting}
           onChange={(next) => {
             if (next === provider) return;
@@ -483,8 +483,8 @@ export function WhatsAppConfig() {
         </DialogContent>
       </Dialog>
 
-      {provider === 'uazapi' ? (
-        <UazapiConfig />
+      {provider === 'evolution' ? (
+        <EvolutionConfig />
       ) : (
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       {/* Main config form */}

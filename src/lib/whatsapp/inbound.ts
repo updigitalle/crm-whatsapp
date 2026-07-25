@@ -3,7 +3,7 @@
 // provedor.
 //
 // Extraída de `app/api/whatsapp/webhook/route.ts` (que era Meta-only)
-// para que a rota da Uazapi possa reusá-la. O comportamento é idêntico
+// para que a rota da Evolution API possa reusá-la. O comportamento é idêntico
 // ao anterior — isto é um recorte, não uma reescrita: achar ou criar
 // contato e conversa, persistir a mensagem, atualizar a conversa,
 // marcar resposta de transmissão, despachar Fluxos, Automações,
@@ -13,7 +13,7 @@
 // O que NÃO vem para cá, por ser específico de cada provedor:
 //   - verificação de assinatura / autenticação do callback
 //   - o formato do payload e a tradução dele
-//   - resolução da conta (phone_number_id na Meta, secret na Uazapi)
+//   - resolução da conta (phone_number_id na Meta, secret na Evolution API)
 //   - download/proxy de mídia
 //   - reações (a Meta as entrega como um tipo de mensagem próprio)
 // ============================================================
@@ -59,7 +59,7 @@ export interface NormalizedInboundMessage {
   /** Telefone do remetente, já normalizado por `normalizePhone`. */
   phone: string
   contactName: string
-  /** Id da mensagem no provedor (wamid na Meta, id na Uazapi). */
+  /** Id da mensagem no provedor (wamid na Meta, id na Evolution API). */
   providerMessageId: string
   timestamp: Date
   contentType: InboundContentType

@@ -8,11 +8,11 @@ interface ProviderSelectorProps {
   value: WhatsAppProviderKind;
   onChange: (value: WhatsAppProviderKind) => void;
   /**
-   * Falso quando a instalação não define UAZAPI_SERVER_URL /
-   * UAZAPI_ADMIN_TOKEN. Resolvido no servidor — o admintoken nunca
-   * chega ao navegador.
+   * Falso quando a instalação não define EVOLUTION_SERVER_URL /
+   * EVOLUTION_API_KEY. Resolvido no servidor — o apikey nunca chega
+   * ao navegador.
    */
-  uazapiAvailable: boolean;
+  evolutionAvailable: boolean;
   /** Trava a troca enquanto uma operação está em curso. */
   disabled?: boolean;
 }
@@ -25,8 +25,8 @@ const OPTIONS = [
       'Exige conta business aprovada pela Meta. Permite modelos de mensagem, transmissões e botões interativos.',
   },
   {
-    kind: 'uazapi' as const,
-    title: 'QR Code (Uazapi)',
+    kind: 'evolution' as const,
+    title: 'QR Code (Evolution API)',
     description:
       'Conecte em segundos escaneando um QR code com o celular, sem aprovação. Não inclui modelos, transmissões nem botões.',
   },
@@ -35,13 +35,13 @@ const OPTIONS = [
 export function ProviderSelector({
   value,
   onChange,
-  uazapiAvailable,
+  evolutionAvailable,
   disabled,
 }: ProviderSelectorProps) {
   return (
     <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Provedor de WhatsApp">
       {OPTIONS.map((option) => {
-        const unavailable = option.kind === 'uazapi' && !uazapiAvailable;
+        const unavailable = option.kind === 'evolution' && !evolutionAvailable;
         const blocked = unavailable || Boolean(disabled);
         const selected = value === option.kind;
 

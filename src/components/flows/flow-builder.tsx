@@ -40,6 +40,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -568,13 +569,13 @@ function NodeConfigWithAdvanced({
 
 function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
   // Botões e listas são mensagens interativas da API oficial da Meta.
-  // Numa conta Uazapi o motor recusa esses nós, então não os oferecemos
+  // Numa conta Evolution API o motor recusa esses nós, então não os oferecemos
   // — melhor não poder criar do que criar e falhar em produção.
-  const { isUazapi } = useWhatsAppProvider();
+  const { isEvolution } = useWhatsAppProvider();
 
   const types: NodeType[] = [
     'start',
-    ...((isUazapi ? [] : ['send_buttons', 'send_list']) as NodeType[]),
+    ...((isEvolution ? [] : ['send_buttons', 'send_list']) as NodeType[]),
     'send_message',
     'send_media',
     'collect_input',
@@ -596,18 +597,20 @@ function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
         {groupNodeTypesByCategory(types).map((group, i) => (
           <div key={group.id}>
             {i > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuLabel className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-              {group.label}
-            </DropdownMenuLabel>
-            {group.types.map((t) => {
-              const meta = NODE_META[t];
-              return (
-                <DropdownMenuItem key={t} onClick={() => onAdd(t)}>
-                  <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
-                  {meta.label}
-                </DropdownMenuItem>
-              );
-            })}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+                {group.label}
+              </DropdownMenuLabel>
+              {group.types.map((t) => {
+                const meta = NODE_META[t];
+                return (
+                  <DropdownMenuItem key={t} onClick={() => onAdd(t)}>
+                    <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
+                    {meta.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
           </div>
         ))}
       </DropdownMenuContent>

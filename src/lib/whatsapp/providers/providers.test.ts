@@ -3,7 +3,7 @@ import { encrypt } from "@/lib/whatsapp/encryption";
 import {
   ProviderNotConfiguredError,
   ProviderNotSupportedError,
-  isUazapiAvailable,
+  isEvolutionAvailable,
   resolveProvider,
 } from "./index";
 
@@ -17,12 +17,12 @@ function metaConfig(over: Record<string, unknown> = {}) {
   };
 }
 
-/** Linha de whatsapp_config no formato Uazapi. */
-function uazapiConfig(over: Record<string, unknown> = {}) {
+/** Linha de whatsapp_config no formato Evolution API. */
+function evolutionConfig(over: Record<string, unknown> = {}) {
   return {
-    provider: "uazapi",
-    uazapi_instance_id: "inst-1",
-    uazapi_instance_token: encrypt("token-uazapi"),
+    provider: "evolution",
+    evolution_instance_name: "conta-abc",
+    evolution_instance_apikey: encrypt("apikey-evolution"),
     ...over,
   };
 }
@@ -45,13 +45,13 @@ function lastBody(fetchMock: ReturnType<typeof vi.fn>) {
 
 const ORIGINAL_ENV = process.env;
 
-/** Define UAZAPI_SERVER_URL para os testes que exercitam a Uazapi. */
-function withUazapiEnv() {
+/** Define EVOLUTION_SERVER_URL para os testes que exercitam a Evolution API. */
+function withEvolutionEnv() {
   beforeEach(() => {
     process.env = {
       ...ORIGINAL_ENV,
-      UAZAPI_SERVER_URL: "https://teste.uazapi.com",
-      UAZAPI_ADMIN_TOKEN: "admin-secreto",
+      EVOLUTION_SERVER_URL: "https://teste.local:8080",
+      EVOLUTION_API_KEY: "admin-secreto",
     };
   });
   afterEach(() => {
@@ -60,14 +60,14 @@ function withUazapiEnv() {
 }
 
 describe("resolveProvider — seleção", () => {
-  withUazapiEnv();
+  withEvolutionEnv();
 
   it("devolve o provider meta para provider='meta'", () => {
     expect(resolveProvider(metaConfig()).kind).toBe("meta");
   });
 
-  it("devolve o provider uazapi para provider='uazapi'", () => {
-    expect(resolveProvider(uazapiConfig()).kind).toBe("uazapi");
+  it("devolve o provider evolution para provider='evolution'", () => {
+    expect(resolveProvider(evolutionConfig()).kind).toBe("evolution");
   });
 
   it("trata provider ausente como meta (linhas anteriores à migração 031)", () => {
@@ -98,43 +98,49 @@ describe("resolveProvider — seleção", () => {
     );
   });
 
-  it("recusa config uazapi sem token da instância", () => {
+  it("recusa config evolution sem apikey da instância", () => {
     expect(() =>
-      resolveProvider(uazapiConfig({ uazapi_instance_token: null })),
+      resolveProvider(evolutionConfig({ evolution_instance_apikey: null })),
+    ).toThrow(ProviderNotConfiguredError);
+  });
+
+  it("recusa config evolution sem nome da instância", () => {
+    expect(() =>
+      resolveProvider(evolutionConfig({ evolution_instance_name: null })),
     ).toThrow(ProviderNotConfiguredError);
   });
 });
 
-describe("resolveProvider — Uazapi sem variáveis de ambiente", () => {
+describe("resolveProvider — Evolution sem variáveis de ambiente", () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.UAZAPI_SERVER_URL;
-    delete process.env.UAZAPI_ADMIN_TOKEN;
+    delete process.env.EVOLUTION_SERVER_URL;
+    delete process.env.EVOLUTION_API_KEY;
   });
   afterEach(() => {
     process.env = ORIGINAL_ENV;
   });
 
-  it("recusa uazapi quando UAZAPI_SERVER_URL não está definida", () => {
-    expect(() => resolveProvider(uazapiConfig())).toThrow(
+  it("recusa evolution quando EVOLUTION_SERVER_URL não está definida", () => {
+    expect(() => resolveProvider(evolutionConfig())).toThrow(
       ProviderNotConfiguredError,
     );
   });
 
-  it("isUazapiAvailable é falso sem as variáveis", () => {
-    expect(isUazapiAvailable()).toBe(false);
+  it("isEvolutionAvailable é falso sem as variáveis", () => {
+    expect(isEvolutionAvailable()).toBe(false);
   });
 
-  it("meta continua funcionando sem as variáveis da Uazapi", () => {
+  it("meta continua funcionando sem as variáveis da Evolution", () => {
     expect(resolveProvider(metaConfig()).kind).toBe("meta");
   });
 });
 
-describe("isUazapiAvailable", () => {
-  withUazapiEnv();
+describe("isEvolutionAvailable", () => {
+  withEvolutionEnv();
 
-  it("é verdadeiro com servidor e admintoken definidos", () => {
-    expect(isUazapiAvailable()).toBe(true);
+  it("é verdadeiro com servidor e apikey definidos", () => {
+    expect(isEvolutionAvailable()).toBe(true);
   });
 });
 
@@ -204,36 +210,35 @@ describe("provider meta — envio", () => {
   });
 });
 
-describe("provider uazapi — envio", () => {
+describe("provider evolution — envio", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
-  withUazapiEnv();
+  withEvolutionEnv();
   beforeEach(() => {
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("sendText chama /send/text com o token da instância", async () => {
-    fetchMock.mockResolvedValue(jsonOk({ id: "msg-1" }));
+  it("sendText chama /message/sendText/{instance} com o apikey da instância", async () => {
+    fetchMock.mockResolvedValue(jsonOk({ key: { id: "msg-1" } }));
 
-    const provider = resolveProvider(uazapiConfig());
+    const provider = resolveProvider(evolutionConfig());
     const result = await provider.sendText({ to: "5511999999999", text: "oi" });
 
     expect(result).toEqual({ messageId: "msg-1" });
-    expect(lastCall(fetchMock).url).toBe("https://teste.uazapi.com/send/text");
-    expect(lastBody(fetchMock)).toMatchObject({
-      number: "5511999999999",
-      text: "oi",
-    });
+    expect(lastCall(fetchMock).url).toBe(
+      "https://teste.local:8080/message/sendText/conta-abc",
+    );
+    expect(lastBody(fetchMock)).toEqual({ number: "5511999999999", text: "oi" });
 
     const headers = lastCall(fetchMock).init.headers as Record<string, string>;
-    expect(headers.token).toBe("token-uazapi");
+    expect(headers.apikey).toBe("apikey-evolution");
   });
 
-  it("sendMedia traduz link→file e filename→docName em documentos", async () => {
-    fetchMock.mockResolvedValue(jsonOk({ id: "msg-2" }));
+  it("sendMedia traduz link→media e filename→fileName", async () => {
+    fetchMock.mockResolvedValue(jsonOk({ key: { id: "msg-2" } }));
 
-    const provider = resolveProvider(uazapiConfig());
+    const provider = resolveProvider(evolutionConfig());
     await provider.sendMedia({
       to: "5511999999999",
       kind: "document",
@@ -242,54 +247,41 @@ describe("provider uazapi — envio", () => {
     });
 
     expect(lastBody(fetchMock)).toMatchObject({
-      type: "document",
-      file: "https://exemplo.com/a.pdf",
-      docName: "contrato.pdf",
+      mediatype: "document",
+      media: "https://exemplo.com/a.pdf",
+      fileName: "contrato.pdf",
     });
-  });
-
-  it("traduz contextMessageId para replyid", async () => {
-    fetchMock.mockResolvedValue(jsonOk({ id: "msg-3" }));
-
-    const provider = resolveProvider(uazapiConfig());
-    await provider.sendText({
-      to: "5511999999999",
-      text: "resposta",
-      contextMessageId: "orig-1",
-    });
-
-    expect(lastBody(fetchMock)).toMatchObject({ replyid: "orig-1" });
   });
 
   it("cobre os quatro tipos de mídia da interface comum", async () => {
-    const provider = resolveProvider(uazapiConfig());
+    const provider = resolveProvider(evolutionConfig());
     for (const kind of ["image", "video", "document", "audio"] as const) {
-      fetchMock.mockResolvedValue(jsonOk({ id: `msg-${kind}` }));
+      fetchMock.mockResolvedValue(jsonOk({ key: { id: `msg-${kind}` } }));
       const result = await provider.sendMedia({
         to: "5511999999999",
         kind,
         link: "https://exemplo.com/arquivo",
       });
       expect(result.messageId).toBe(`msg-${kind}`);
-      expect(lastBody(fetchMock)).toMatchObject({ type: kind });
+      expect(lastBody(fetchMock)).toMatchObject({ mediatype: kind });
     }
   });
 });
 
 describe("paridade de interface", () => {
-  withUazapiEnv();
+  withEvolutionEnv();
 
   it("os dois providers expõem os mesmos métodos", () => {
     const meta = resolveProvider(metaConfig());
-    const uazapi = resolveProvider(uazapiConfig());
+    const evolution = resolveProvider(evolutionConfig());
     for (const method of ["sendText", "sendMedia"] as const) {
       expect(typeof meta[method]).toBe("function");
-      expect(typeof uazapi[method]).toBe("function");
+      expect(typeof evolution[method]).toBe("function");
     }
   });
 
   it("cada provider se identifica pelo kind", () => {
     expect(resolveProvider(metaConfig()).kind).toBe("meta");
-    expect(resolveProvider(uazapiConfig()).kind).toBe("uazapi");
+    expect(resolveProvider(evolutionConfig()).kind).toBe("evolution");
   });
 });

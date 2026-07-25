@@ -87,6 +87,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -687,12 +688,12 @@ function CanvasAddNodeButton() {
   const reactFlow = useReactFlow();
   const { addNode, updateNodePosition } = useFlowEditor();
   // Botões e listas são mensagens interativas da API oficial da Meta.
-  // Numa conta Uazapi o motor recusa esses nós — não os oferecemos aqui,
+  // Numa conta Evolution API o motor recusa esses nós — não os oferecemos aqui,
   // espelhando a mesma guarda do AddNodeButton da visão em lista.
-  const { isUazapi } = useWhatsAppProvider();
+  const { isEvolution } = useWhatsAppProvider();
   const ADD_NODE_TYPES: NodeType[] = [
     'start',
-    ...((isUazapi ? [] : ['send_buttons', 'send_list']) as NodeType[]),
+    ...((isEvolution ? [] : ['send_buttons', 'send_list']) as NodeType[]),
     'send_message',
     'send_media',
     'collect_input',
@@ -742,34 +743,36 @@ function CanvasAddNodeButton() {
         {groupNodeTypesByCategory(ADD_NODE_TYPES).map((group, i) => (
           <div key={group.id}>
             {i > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuLabel className="text-muted-foreground px-2 py-1.5 text-[11px] font-semibold tracking-wider uppercase">
-              {group.label}
-            </DropdownMenuLabel>
-            {group.types.map((t) => {
-              const meta = NODE_META[t];
-              return (
-                <DropdownMenuItem
-                  key={t}
-                  onClick={() => handleAdd(t)}
-                  className="gap-3 py-2"
-                >
-                  <NodeIconChip
-                    type={t}
-                    size={28}
-                    iconSize={16}
-                    className="rounded-md"
-                  />
-                  <span className="flex flex-col">
-                    <span className="text-popover-foreground text-[13px] font-semibold">
-                      {meta.label}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-muted-foreground px-2 py-1.5 text-[11px] font-semibold tracking-wider uppercase">
+                {group.label}
+              </DropdownMenuLabel>
+              {group.types.map((t) => {
+                const meta = NODE_META[t];
+                return (
+                  <DropdownMenuItem
+                    key={t}
+                    onClick={() => handleAdd(t)}
+                    className="gap-3 py-2"
+                  >
+                    <NodeIconChip
+                      type={t}
+                      size={28}
+                      iconSize={16}
+                      className="rounded-md"
+                    />
+                    <span className="flex flex-col">
+                      <span className="text-popover-foreground text-[13px] font-semibold">
+                        {meta.label}
+                      </span>
+                      <span className="text-muted-foreground text-[11.5px]">
+                        {meta.blurb}
+                      </span>
                     </span>
-                    <span className="text-muted-foreground text-[11.5px]">
-                      {meta.blurb}
-                    </span>
-                  </span>
-                </DropdownMenuItem>
-              );
-            })}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
           </div>
         ))}
       </DropdownMenuContent>

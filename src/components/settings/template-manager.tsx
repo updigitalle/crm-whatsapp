@@ -143,7 +143,7 @@ export function TemplateManager() {
   const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
   // Modelos são aprovados pela Meta e só existem na API oficial.
-  const { isUazapi, loading: providerLoading } = useWhatsAppProvider();
+  const { isEvolution, loading: providerLoading } = useWhatsAppProvider();
 
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -497,9 +497,9 @@ export function TemplateManager() {
     }
   }
 
-  // Guarda de provedor: criar um modelo numa conta Uazapi produziria uma
+  // Guarda de provedor: criar um modelo numa conta Evolution API produziria uma
   // linha que nunca poderia ser enviada. O backend também recusa.
-  if (!providerLoading && isUazapi) {
+  if (!providerLoading && isEvolution) {
     return (
       <section className="animate-in fade-in-50 space-y-4 duration-200">
         <SettingsPanelHead

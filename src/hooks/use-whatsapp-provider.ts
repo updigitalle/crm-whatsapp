@@ -10,9 +10,9 @@ import type { WhatsAppProviderKind } from "@/types";
  * Provedor de WhatsApp configurado na conta.
  *
  * Existe para as telas que precisam esconder recursos sem equivalente na
- * Uazapi (Transmissões, Modelos, nós de botão/lista nos Fluxos). O
- * backend também recusa essas operações — isto é só a metade da guarda
- * que evita o usuário chegar a tentar.
+ * Evolution API (Transmissões, Modelos, nós de botão/lista nos Fluxos).
+ * O backend também recusa essas operações — isto é só a metade da
+ * guarda que evita o usuário chegar a tentar.
  *
  * `provider` começa em 'meta' porque é o default do banco (migração 031)
  * e o comportamento histórico de toda conta: enquanto carrega, nenhuma
@@ -22,7 +22,7 @@ export function useWhatsAppProvider(): {
   provider: WhatsAppProviderKind;
   loading: boolean;
   /** Atalho: a conta usa um provedor sem modelos/transmissões/botões? */
-  isUazapi: boolean;
+  isEvolution: boolean;
 } {
   const supabase = createClient();
   const { accountId, loading: authLoading, profileLoading } = useAuth();
@@ -64,5 +64,5 @@ export function useWhatsAppProvider(): {
     };
   }, [supabase, accountId, authLoading, profileLoading]);
 
-  return { provider, loading, isUazapi: provider === "uazapi" };
+  return { provider, loading, isEvolution: provider === "evolution" };
 }

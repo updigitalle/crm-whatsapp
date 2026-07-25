@@ -8,27 +8,16 @@ import { CheckCircle2, Loader2, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-type ConnectionState =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'expired'
-  | 'error';
+type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 
-/** A Uazapi expira o QR em 2 minutos. */
-const QR_TTL_MS = 2 * 60 * 1000;
 const POLL_INTERVAL_MS = 3000;
 
-export function UazapiConfig() {
+export function EvolutionConfig() {
   const [state, setState] = useState<ConnectionState>('idle');
   const [qrcode, setQrcode] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
-  const [profilePicUrl, setProfilePicUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Refs em vez de estado: o timer não deve provocar re-render.
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const expiryRef = useRef<number>(0);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -41,37 +30,26 @@ export function UazapiConfig() {
   // aparecer como desconectada.
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/whatsapp/uazapi/status')
+    fetch('/api/whatsapp/evolution/status')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        if (data.status === 'connected') {
-          setState('connected');
-          setProfileName(data.profileName ?? null);
-          setProfilePicUrl(data.profilePicUrl ?? null);
-        }
+        if (data.status === 'connected') setState('connected');
       })
       .catch(() => {
-        // Silencioso: é só a hidratação inicial. Uma conta sem instância
-        // responde 404 aqui, o que é o estado normal antes de conectar.
+        // Silencioso: é só a hidratação inicial (404 é normal antes de
+        // conectar pela primeira vez).
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Garante que o polling pare se o componente desmontar no meio.
   useEffect(() => stopPolling, [stopPolling]);
 
   const poll = useCallback(async () => {
-    if (Date.now() > expiryRef.current) {
-      stopPolling();
-      setState('expired');
-      setQrcode(null);
-      return;
-    }
     try {
-      const response = await fetch('/api/whatsapp/uazapi/status');
+      const response = await fetch('/api/whatsapp/evolution/status');
       if (!response.ok) return;
       const data = await response.json();
 
@@ -79,12 +57,9 @@ export function UazapiConfig() {
         stopPolling();
         setState('connected');
         setQrcode(null);
-        setProfileName(data.profileName ?? null);
-        setProfilePicUrl(data.profilePicUrl ?? null);
         toast.success('WhatsApp conectado!');
         return;
       }
-      // QR renovado pelo servidor durante o processo.
       if (data.qrcode) setQrcode(data.qrcode);
     } catch {
       // Falha pontual de rede: a próxima iteração tenta de novo.
@@ -96,7 +71,7 @@ export function UazapiConfig() {
     setState('connecting');
     setQrcode(null);
     try {
-      const response = await fetch('/api/whatsapp/uazapi/connect', {
+      const response = await fetch('/api/whatsapp/evolution/connect', {
         method: 'POST',
       });
       const data = await response.json();
@@ -108,7 +83,6 @@ export function UazapiConfig() {
       }
 
       setQrcode(data.qrcode ?? null);
-      expiryRef.current = Date.now() + QR_TTL_MS;
       stopPolling();
       pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
     } catch {
@@ -122,7 +96,7 @@ export function UazapiConfig() {
   const handleDisconnect = useCallback(async () => {
     setBusy(true);
     try {
-      const response = await fetch('/api/whatsapp/uazapi/disconnect', {
+      const response = await fetch('/api/whatsapp/evolution/disconnect', {
         method: 'POST',
       });
       if (!response.ok) {
@@ -132,8 +106,6 @@ export function UazapiConfig() {
       stopPolling();
       setState('idle');
       setQrcode(null);
-      setProfileName(null);
-      setProfilePicUrl(null);
       toast.success('WhatsApp desconectado.');
     } catch {
       toast.error('Não foi possível desconectar. Tente novamente.');
@@ -146,26 +118,11 @@ export function UazapiConfig() {
     return (
       <Card>
         <CardContent className="flex items-center gap-4 p-6">
-          {profilePicUrl ? (
-            <Image
-              src={profilePicUrl}
-              alt=""
-              width={48}
-              height={48}
-              className="rounded-full"
-              // A foto vem de um domínio da Uazapi que não está na
-              // allow-list do next/image; sem isto o carregamento falha.
-              unoptimized
-            />
-          ) : (
-            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-              <CheckCircle2 className="size-6 text-emerald-500" />
-            </div>
-          )}
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+            <CheckCircle2 className="size-6 text-emerald-500" />
+          </div>
           <div className="flex-1">
-            <p className="font-medium">
-              {profileName ?? 'WhatsApp conectado'}
-            </p>
+            <p className="font-medium">WhatsApp conectado</p>
             <p className="text-sm text-emerald-500">Conectado</p>
           </div>
           <Button variant="outline" onClick={handleDisconnect} disabled={busy}>
@@ -194,20 +151,12 @@ export function UazapiConfig() {
               <li>2. Toque em Aparelhos conectados</li>
               <li>3. Toque em Conectar aparelho e escaneie o código</li>
             </ol>
-            <p className="text-xs text-muted-foreground">
-              O código expira em 2 minutos.
-            </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-muted">
               <QrCode className="size-6 text-muted-foreground" />
             </div>
-            {state === 'expired' && (
-              <p className="text-sm text-muted-foreground">
-                QR code expirado. Gere um novo para continuar.
-              </p>
-            )}
             {state === 'idle' && (
               <p className="max-w-sm text-sm text-muted-foreground">
                 Conecte seu WhatsApp escaneando um QR code, sem precisar de
@@ -220,8 +169,6 @@ export function UazapiConfig() {
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Gerando código…
                 </>
-              ) : state === 'expired' ? (
-                'Gerar novo QR'
               ) : (
                 'Conectar WhatsApp'
               )}

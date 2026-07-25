@@ -63,7 +63,7 @@ export default function BroadcastsPage() {
   const canCreate = useCan('send-messages');
   // Transmissões dependem de modelo aprovado pela Meta — não é uma
   // chamada diferente, é o modelo de dados da funcionalidade.
-  const { isUazapi, loading: providerLoading } = useWhatsAppProvider();
+  const { isEvolution, loading: providerLoading } = useWhatsAppProvider();
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +154,7 @@ export default function BroadcastsPage() {
 
   // O backend também recusa (broadcast-core exige template aprovado);
   // esta guarda evita o usuário montar uma transmissão que nunca sairia.
-  if (!providerLoading && isUazapi) {
+  if (!providerLoading && isEvolution) {
     return (
       <div className="space-y-6">
         <div>

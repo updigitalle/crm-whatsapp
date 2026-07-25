@@ -3,7 +3,7 @@
  *
  * Só entram aqui as operações que TODOS os provedores suportam. Template,
  * botões e listas ficam de fora de propósito: são exclusivos da Meta, e
- * colocá-los na interface obrigaria o adapter da Uazapi a implementar
+ * colocá-los na interface obrigaria o adapter da Evolution a implementar
  * métodos que sempre falhariam. Quem precisa deles chama `meta-api.ts`
  * diretamente, depois de checar `provider.kind === 'meta'`.
  */
@@ -39,7 +39,7 @@ export interface WhatsAppProvider {
   sendMedia(args: ProviderSendMediaArgs): Promise<{ messageId: string }>
 }
 
-/** O provedor da conta não suporta o recurso pedido (ex.: template na Uazapi). */
+/** O provedor da conta não suporta o recurso pedido (ex.: template na Evolution). */
 export class ProviderNotSupportedError extends Error {
   readonly code = 'provider_not_supported'
   constructor(message: string) {
@@ -69,7 +69,7 @@ export interface ProviderConfigRow {
   provider?: string | null
   phone_number_id?: string | null
   access_token?: string | null
-  uazapi_instance_id?: string | null
-  uazapi_instance_token?: string | null
+  evolution_instance_name?: string | null
+  evolution_instance_apikey?: string | null
   [key: string]: unknown
 }

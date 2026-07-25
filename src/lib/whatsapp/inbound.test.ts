@@ -47,11 +47,11 @@ describe("NormalizedInboundMessage", () => {
     expect(msg.mediaUrl).toBe("/api/whatsapp/media/xyz");
   });
 
-  it("aceita URL externa de mídia (caminho da Uazapi na v1)", () => {
+  it("aceita URL externa de mídia (caminho da Evolution API na v1)", () => {
     const msg: NormalizedInboundMessage = {
       ...base(),
       contentType: "image",
-      mediaUrl: "https://arquivos.uazapi.com/abc.jpg",
+      mediaUrl: "https://arquivos.evolution.local/abc.jpg",
     };
     expect(msg.mediaUrl).toContain("https://");
   });
@@ -79,7 +79,7 @@ describe("NormalizedInboundMessage", () => {
       ...base(),
       contentType: "audio",
       text: null,
-      mediaUrl: "https://arquivos.uazapi.com/a.ogg",
+      mediaUrl: "https://arquivos.evolution.local/a.ogg",
     };
     expect(msg.text).toBeNull();
   });

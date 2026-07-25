@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
-import { UazapiError } from '@/lib/whatsapp/uazapi-api'
+import { EvolutionError } from '@/lib/whatsapp/evolution-api'
 
-/**
- * Mensagem de tela para cada código de falha da Uazapi.
- *
- * Fica num módulo próprio para as três rotas compartilharem o mesmo
- * texto — mensagens divergentes para a mesma causa confundem o suporte.
- */
+/** Mensagem de tela para cada código de falha da Evolution API. */
 export function messageForCode(code: string): string {
   switch (code) {
     case 'unauthorized':
-      return 'Credenciais da Uazapi inválidas. Contate o administrador.'
+      return 'Credenciais da Evolution API inválidas. Contate o administrador.'
     case 'rate_limited':
       return 'Limite de conexões simultâneas atingido. Tente novamente em alguns minutos.'
     case 'capacity_unavailable':
@@ -18,7 +13,7 @@ export function messageForCode(code: string): string {
     case 'network_error':
       return 'Não foi possível conectar ao servidor. Verifique as credenciais ou tente novamente.'
     case 'instance_not_found':
-      return 'Nenhuma conexão Uazapi encontrada nesta conta.'
+      return 'Nenhuma conexão Evolution encontrada nesta conta.'
     case 'provider_not_configured':
       return 'Provedor não configurado pelo administrador.'
     default:
@@ -26,20 +21,15 @@ export function messageForCode(code: string): string {
   }
 }
 
-/**
- * Converte um `UazapiError` em resposta HTTP. Devolve null quando o erro
- * não é dela, para o chamador cair no `toErrorResponse` padrão.
- */
-export function uazapiErrorResponse(
+/** Converte um `EvolutionError` em resposta HTTP; null quando não é dela. */
+export function evolutionErrorResponse(
   err: unknown,
   tag: string,
 ): NextResponse | null {
-  if (!(err instanceof UazapiError)) return null
+  if (!(err instanceof EvolutionError)) return null
   console.error(`[${tag}]`, err.code, err.message)
   return NextResponse.json(
     { error: messageForCode(err.code), code: err.code },
-    // status 0 (falha de rede) e status < 400 viram 502: o problema está
-    // entre nós e a Uazapi, não na requisição do usuário.
     { status: err.status >= 400 ? err.status : 502 },
   )
 }

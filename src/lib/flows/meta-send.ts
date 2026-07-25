@@ -342,7 +342,7 @@ async function sendInteractiveViaMeta(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  // Botões e listas são recursos da API oficial. Numa conta Uazapi o nó
+  // Botões e listas são recursos da API oficial. Numa conta Evolution API o nó
   // interativo não tem equivalente — falha cedo, com mensagem que o log
   // do fluxo mostra ao usuário, em vez de montar um payload que o
   // provedor rejeitaria.

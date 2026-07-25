@@ -9,7 +9,7 @@
 
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { createMetaProvider } from './meta'
-import { createUazapiProvider } from './uazapi'
+import { createEvolutionProvider } from './evolution'
 import {
   ProviderNotConfiguredError,
   ProviderNotSupportedError,
@@ -19,25 +19,25 @@ import {
 
 export * from './types'
 
-/** URL do servidor Uazapi da instalação. Ausente = provedor indisponível. */
-export function uazapiServerUrl(): string | null {
-  const url = process.env.UAZAPI_SERVER_URL
+/** URL do servidor Evolution API da instalação. Ausente = provedor indisponível. */
+export function evolutionServerUrl(): string | null {
+  const url = process.env.EVOLUTION_SERVER_URL
   return url && url.trim() ? url.trim() : null
 }
 
-/** Admintoken do servidor Uazapi. Só usado para criar instâncias. */
-export function uazapiAdminToken(): string | null {
-  const token = process.env.UAZAPI_ADMIN_TOKEN
-  return token && token.trim() ? token.trim() : null
+/** AUTHENTICATION_API_KEY do servidor. Só usado para criar instâncias. */
+export function evolutionAdminApikey(): string | null {
+  const key = process.env.EVOLUTION_API_KEY
+  return key && key.trim() ? key.trim() : null
 }
 
 /**
- * A instalação tem Uazapi configurada? Usado para habilitar a opção na
- * interface — sem isso o card aparece desabilitado em vez de falhar no
- * meio do fluxo de conexão.
+ * A instalação tem Evolution API configurada? Usado para habilitar a
+ * opção na interface — sem isso o card aparece desabilitado em vez de
+ * falhar no meio do fluxo de conexão.
  */
-export function isUazapiAvailable(): boolean {
-  return uazapiServerUrl() !== null && uazapiAdminToken() !== null
+export function isEvolutionAvailable(): boolean {
+  return evolutionServerUrl() !== null && evolutionAdminApikey() !== null
 }
 
 export function resolveProvider(config: ProviderConfigRow): WhatsAppProvider {
@@ -57,21 +57,22 @@ export function resolveProvider(config: ProviderConfigRow): WhatsAppProvider {
     })
   }
 
-  if (kind === 'uazapi') {
-    const serverUrl = uazapiServerUrl()
+  if (kind === 'evolution') {
+    const serverUrl = evolutionServerUrl()
     if (!serverUrl) {
       throw new ProviderNotConfiguredError(
-        'UAZAPI_SERVER_URL não está definida nesta instalação.',
+        'EVOLUTION_SERVER_URL não está definida nesta instalação.',
       )
     }
-    if (!config.uazapi_instance_token) {
+    if (!config.evolution_instance_name || !config.evolution_instance_apikey) {
       throw new ProviderNotConfiguredError(
-        'Configuração da Uazapi incompleta: falta o token da instância.',
+        'Configuração da Evolution API incompleta: falta a instância ou o apikey.',
       )
     }
-    return createUazapiProvider({
+    return createEvolutionProvider({
       serverUrl,
-      token: decrypt(config.uazapi_instance_token),
+      instanceName: config.evolution_instance_name,
+      apikey: decrypt(config.evolution_instance_apikey),
     })
   }
 

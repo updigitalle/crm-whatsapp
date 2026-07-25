@@ -62,7 +62,7 @@ export class SendMessageError extends Error {
 
 /**
  * Código devolvido quando a conta pede um template mas o provedor
- * configurado não tem esse conceito (Uazapi). Exportado para a UI poder
+ * configurado não tem esse conceito (Evolution API). Exportado para a UI poder
  * reconhecer o caso sem comparar strings soltas.
  */
 export const TEMPLATE_UNSUPPORTED_CODE = 'template_not_supported_by_provider';
@@ -242,7 +242,7 @@ export async function sendMessageToConversation(
 
   // Só o caminho de template usa o token diretamente; texto e mídia
   // passam pelo provider, que já embute a credencial certa. Contas
-  // Uazapi não têm access_token — daí a leitura condicional.
+  // Evolution API não têm access_token — daí a leitura condicional.
   const accessToken = config.access_token ? decrypt(config.access_token) : '';
 
   // Self-heal legacy CBC ciphertexts. Fire-and-forget; idempotent.
@@ -315,7 +315,7 @@ export async function sendMessageToConversation(
   // casca fina sobre meta-api.ts.
   const provider = resolveProvider(config);
 
-  // Template é exclusivo da Meta: a Uazapi não tem esse conceito.
+  // Template é exclusivo da Meta: a Evolution API não tem esse conceito.
   // Falhamos aqui, antes de qualquer chamada de rede, com um código que
   // a UI reconhece.
   if (messageType === 'template' && provider.kind !== 'meta') {
